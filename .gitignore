@@ -1,0 +1,13 @@
+# Binarios y Ejecutables
+*.exe
+sentinel
+*.o
+
+# Archivos de datos y pruebas
+*.txt
+*.enc
+*.sentinel
+recuperado.txt
+
+# Logs
+*.log
