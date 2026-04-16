@@ -1,66 +1,69 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <cstring>
-#include <stdlib.h>
+#include <cstdlib>
+#include <filesystem>
+#include <chrono>
+#include <iomanip>
 
-class Sentinel {
-private:
-    char* data;
-    size_t size;
-    const char* key;
+namespace fs = std::filesystem;
 
-    unsigned int calculate_checksum(char* b, size_t s) {
-        unsigned int checksum = 0;
-        for (size_t i = 0; i < s; i++) checksum += (unsigned char)b[i];
-        return checksum;
+// Función para obtener timestamp profesional
+std::string get_timestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%dT%H:%M:%S");
+    return ss.str();
+}
+
+// Generador de Logs JSON nativo
+void log_audit(std::string action, std::string target, std::string status) {
+    std::ofstream log_file("sentinel_audit.log", std::ios::app);
+    log_file << "{\"timestamp\": \"" << get_timestamp() 
+             << "\", \"action\": \"" << action 
+             << "\", \"target\": \"" << target 
+             << "\", \"status\": \"" << status 
+             << "\", \"operator\": \"Jorgeotero1998\"}" << std::endl;
+}
+
+int main() {
+    // 1. Verificación de Seguridad (Token de Entorno)
+    const char* env_token = getenv("SENTINEL_TOKEN");
+    if (!env_token || std::strcmp(env_token, "SECRET_123") != 0) {
+        std::cerr << " [!] UNAUTHORIZED: Security token missing or invalid." << std::endl;
+        return 1;
     }
 
-public:
-    Sentinel(const char* encryption_key) : data(nullptr), size(0), key(encryption_key) {}
+    std::cout << "--- 🛡️ MEMORY SENTINEL NATIVE MODE ---" << std::endl;
 
-    bool process_file(const std::string& filename) {
-        std::ifstream file(filename, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) return false;
+    // 2. Escaneo de archivos nativo (C++17)
+    for (const auto& entry : fs::directory_iterator(".")) {
+        if (entry.path().extension() == ".txt" && entry.path().filename() != "sentinel_audit.log") {
+            std::string filename = entry.path().string();
+            std::cout << "[*] Shielding: " << filename << "... ";
 
-        size = file.tellg();
-        file.seekg(0, std::ios::beg);
+            std::ifstream file(filename, std::ios::binary);
+            if (!file) {
+                log_audit("ENCRYPTION", filename, "FAILED_OPEN");
+                std::cout << "ERROR" << std::endl;
+                continue;
+            }
 
-        data = (char*)malloc(size);
-        if (!data) return false;
+            std::vector<char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            file.close();
 
-        file.read(data, size);
-        file.close();
+            // Cifrado Bitwise XOR
+            for (char &c : buffer) c ^= 0xFF;
 
-        unsigned int checksum_before = calculate_checksum(data, size);
-        
-        size_t key_len = strlen(key);
-        for (size_t i = 0; i < size; i++) data[i] ^= key[i % key_len];
+            std::ofstream outfile(filename + ".sentinel", std::ios::binary);
+            outfile.write(buffer.data(), buffer.size());
+            outfile.close();
 
-        std::string out_name = filename + ".sentinel";
-        std::ofstream out(out_name, std::ios::binary);
-        if (out.is_open()) {
-            out.write(data, size);
-            out.close();
-            std::cout << "Success. Checksum: " << std::hex << checksum_before << std::endl;
+            log_audit("ENCRYPTION", filename, "SUCCESS");
+            std::cout << "DONE" << std::endl;
         }
-
-        return true;
-    }
-
-    ~Sentinel() {
-        if (data) free(data);
-    }
-};
-
-int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cout << "Usage: ./sentinel <file>" << std::endl;
-        return 1;
-    }
-    Sentinel engine("Industrial_Grade_Key_2026");
-    if (!engine.process_file(argv[1])) {
-        std::cerr << "Error processing file." << std::endl;
-        return 1;
     }
     return 0;
 }
