@@ -2,6 +2,10 @@
 
 **High-performance file encryption engine with a multi-language automated workflow.**
 
+## Screenshot
+<img width="1147" height="668" alt="sent2" src="https://github.com/user-attachments/assets/7492d6cf-c582-4239-971c-db757295bcce" />
+
+
 ## 🏗️ Polyglot Architecture
 This project demonstrates how to integrate different technologies to build a robust security tool:
 
